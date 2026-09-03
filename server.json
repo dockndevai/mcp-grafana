@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.dockndevai/mcp-grafana",
-  "description": "Search & edit Grafana dashboards, query datasources (Prometheus/Loki/SQL), inspect alerts. Safe by default.",
+  "description": "Search & edit Grafana dashboards, query datasources (PromQL/LogQL/SQL), inspect alerts.",
   "repository": {
     "url": "https://github.com/dockndevai/mcp-grafana",
     "source": "github"

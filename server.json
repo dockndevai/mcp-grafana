@@ -1,0 +1,41 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.dockndevai/mcp-grafana",
+  "description": "Search & edit Grafana dashboards, query datasources (Prometheus/Loki/SQL), inspect alerts. Safe by default.",
+  "repository": {
+    "url": "https://github.com/dockndevai/mcp-grafana",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@dockndevai/mcp-grafana",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "GRAFANA_URL",
+          "description": "Base URL of the Grafana instance (e.g. http://localhost:3000).",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "GRAFANA_TOKEN",
+          "description": "Grafana service-account token (Bearer). Use a Viewer-role account for read-only use.",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "GRAFANA_MODE",
+          "description": "Access mode: read-only | read-write | admin. Starts read-only; writes need read-write.",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}

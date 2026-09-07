@@ -8,6 +8,8 @@ A **safe-by-default** [Model Context Protocol](https://modelcontextprotocol.io) 
 
 Part of the [dockndevai MCP server suite](https://dockndevai.github.io/) — one governance model across all of them.
 
+![mcp-grafana — safe by default: read-only exposes 11 tools; raising the access mode unlocks writes and (gated) deletes](docs/demo.gif)
+
 ## What it gives an agent
 
 The server starts **read-only** (see [Safe by default](#safe-by-default)); higher-capability tools are only registered when you raise the mode.

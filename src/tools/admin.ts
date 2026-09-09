@@ -19,7 +19,7 @@ export const adminTools: ToolDef[] = [
         "admin mode and GRAFANA_ALLOW_DELETE=true.",
       inputSchema: { uid: z.string().min(1).describe("Dashboard UID.") },
     },
-    handler: async (args, { client, policy }) => {
+    handler: async (args, { client, policy, confirm }) => {
       const uid = args.uid as string;
       // Resolve the dashboard's folder so protected-folder enforcement applies to deletes too.
       let folder: string | undefined;
@@ -31,6 +31,8 @@ export const adminTools: ToolDef[] = [
       }
       const { dryRun } = policy.guard({ tool: "delete_dashboard", capability: "admin", destructive: true, folder });
       if (dryRun) return textResult(`[dry-run] Would delete dashboard ${uid}.`);
+      const ok = await confirm.confirm({ action: "delete dashboard", target: uid, details: { folder } });
+      if (!ok.approved) return textResult(`Deletion cancelled — ${ok.reason}.`);
       return jsonResult(await client.deleteDashboard(uid));
     },
   },
@@ -45,10 +47,12 @@ export const adminTools: ToolDef[] = [
         "folders. Requires admin mode and GRAFANA_ALLOW_DELETE=true.",
       inputSchema: { uid: z.string().min(1).describe("Folder UID.") },
     },
-    handler: async (args, { client, policy }) => {
+    handler: async (args, { client, policy, confirm }) => {
       const uid = args.uid as string;
       const { dryRun } = policy.guard({ tool: "delete_folder", capability: "admin", destructive: true, folder: uid });
       if (dryRun) return textResult(`[dry-run] Would delete folder ${uid} and its dashboards.`);
+      const ok = await confirm.confirm({ action: "delete folder (and its dashboards)", target: uid });
+      if (!ok.approved) return textResult(`Deletion cancelled — ${ok.reason}.`);
       return jsonResult(await client.deleteFolder(uid));
     },
   },
@@ -61,10 +65,13 @@ export const adminTools: ToolDef[] = [
       description: "Delete an annotation by numeric id. Requires admin mode and GRAFANA_ALLOW_DELETE=true.",
       inputSchema: { id: z.number().int().describe("Annotation id (from list_annotations).") },
     },
-    handler: async (args, { client, policy }) => {
+    handler: async (args, { client, policy, confirm }) => {
+      const id = args.id as number;
       const { dryRun } = policy.guard({ tool: "delete_annotation", capability: "admin", destructive: true });
-      if (dryRun) return textResult(`[dry-run] Would delete annotation ${args.id as number}.`);
-      return jsonResult(await client.deleteAnnotation(args.id as number));
+      if (dryRun) return textResult(`[dry-run] Would delete annotation ${id}.`);
+      const ok = await confirm.confirm({ action: "delete annotation", target: String(id) });
+      if (!ok.approved) return textResult(`Deletion cancelled — ${ok.reason}.`);
+      return jsonResult(await client.deleteAnnotation(id));
     },
   },
 ];

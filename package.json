@@ -1,7 +1,7 @@
 {
   "name": "@dockndevai/mcp-grafana",
   "mcpName": "io.github.dockndevai/mcp-grafana",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Model Context Protocol server for Grafana — search & edit dashboards, query datasources (Prometheus/Loki/SQL), inspect alerts & annotations, with safe-by-default access modes and guards.",
   "type": "module",
   "license": "MIT",

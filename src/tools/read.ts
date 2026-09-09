@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { redactDatasource } from "../grafana/client.js";
 import type { ToolDef } from "./types.js";
-import { jsonResult, textResult } from "./types.js";
+import { jsonResult } from "./types.js";
 
 /**
  * Read tools. Available in every access mode (read-only and up). None of these mutate Grafana.

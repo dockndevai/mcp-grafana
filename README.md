@@ -70,6 +70,8 @@ The access model is enforced by [`src/security.ts`](src/security.ts) — defence
 - **Interactive confirmation** — when the client supports MCP elicitation, deleting a dashboard/folder/annotation prompts the **human** to approve before it runs; clients that can't elicit fall back to the `GRAFANA_ALLOW_DELETE` gate.
 - **Secrets are never returned** — datasource `secureJsonData`, passwords and tokens are stripped from every response.
 
+![Interactive confirmation — the agent asks to delete a dashboard; the server pauses and asks the human via MCP elicitation. Declining leaves the dashboard untouched; approving proceeds.](docs/confirm-demo.gif)
+
 See [SECURITY.md](SECURITY.md).
 
 ## Working with dashboards & queries

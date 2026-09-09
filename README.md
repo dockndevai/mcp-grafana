@@ -67,6 +67,7 @@ The access model is enforced by [`src/security.ts`](src/security.ts) — defence
 - **`GRAFANA_DATASOURCE_ALLOWLIST`** — restrict which datasources `query_datasource` may hit.
 - **`GRAFANA_DRY_RUN`** — validate and log writes without executing them.
 - **`GRAFANA_AUDIT_LOG`** — a JSON audit line per guarded operation, on stderr (default on).
+- **Interactive confirmation** — when the client supports MCP elicitation, deleting a dashboard/folder/annotation prompts the **human** to approve before it runs; clients that can't elicit fall back to the `GRAFANA_ALLOW_DELETE` gate.
 - **Secrets are never returned** — datasource `secureJsonData`, passwords and tokens are stripped from every response.
 
 See [SECURITY.md](SECURITY.md).

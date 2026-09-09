@@ -15,7 +15,7 @@ export function buildServer(config: AppConfig): { server: McpServer; enabled: st
   const client = new GrafanaClient(config.connection.baseUrl, config.connection.token, config.connection.timeoutMs);
   const ctx: ToolContext = { client, policy };
 
-  const server = new McpServer({ name: "grafana", version: "0.1.0" });
+  const server = new McpServer({ name: "grafana", version: "0.1.1" });
 
   const enabled: string[] = [];
   for (const tool of ALL_TOOLS) {

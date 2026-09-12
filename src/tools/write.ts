@@ -20,7 +20,7 @@ export const writeTools: ToolDef[] = [
         "existing `uid` and set overwrite=true. Grafana versions every save, so this is reversible. " +
         "Put it in a folder with `folderUid`.",
       inputSchema: {
-        dashboard: z.record(z.any()).describe("The dashboard JSON model (see get_dashboard for the shape)."),
+        dashboard: z.record(z.string(), z.any()).describe("The dashboard JSON model (see get_dashboard for the shape)."),
         folderUid: z.string().optional().describe("Target folder UID. Omit for the General folder."),
         message: z.string().optional().describe("Version note recorded in the dashboard history."),
         overwrite: z.boolean().optional().describe("Set true when updating an existing dashboard by uid."),

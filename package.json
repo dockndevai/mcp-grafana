@@ -1,7 +1,7 @@
 {
   "name": "@dockndevai/mcp-grafana",
   "mcpName": "io.github.dockndevai/mcp-grafana",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Model Context Protocol server for Grafana — search & edit dashboards, query datasources (Prometheus/Loki/SQL), inspect alerts & annotations, with safe-by-default access modes and guards.",
   "type": "module",
   "license": "MIT",
@@ -47,12 +47,12 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "zod": "^3.23.8"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@types/node": "^22.9.0",
-    "tsx": "^4.19.2",
-    "typescript": "^5.6.3",
+    "@types/node": "^26.5.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
     "vitest": "^5.0.0"
   }
 }

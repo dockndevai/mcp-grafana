@@ -4,8 +4,8 @@
  *
  * Lets an agent explore and operate Grafana — search dashboards and folders, read the dashboard
  * JSON model, list and query datasources (Prometheus/Loki/SQL via the unified /api/ds/query),
- * inspect alert rules and annotations, and (in higher modes) create/update dashboards and folders,
- * write annotations, and delete.
+ * inspect alert rules, annotations and silences, and (in higher modes) create/update dashboards
+ * and folders, write annotations, mute alerts with a silence, and delete.
  *
  * Safe by default: starts in read-only mode, so only the read tools are registered. Writes need
  * GRAFANA_MODE=read-write; deletes need admin mode plus GRAFANA_ALLOW_DELETE=true. The access model

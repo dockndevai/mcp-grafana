@@ -4,8 +4,9 @@ import { jsonResult, textResult } from "./types.js";
 
 /**
  * Write tools. Registered only in `read-write` mode and up. They create or update dashboards,
- * folders and annotations. None permanently destroys data (dashboards are versioned and can be
- * rolled back) — deletes live in admin.ts.
+ * folders, annotations and alert silences. None permanently destroys data (dashboards are
+ * versioned and can be rolled back, silences expire on their own or can be ended early) —
+ * deletes live in admin.ts.
  */
 export const writeTools: ToolDef[] = [
   {
@@ -97,6 +98,74 @@ export const writeTools: ToolDef[] = [
           panelId: args.panelId as number | undefined,
         }),
       );
+    },
+  },
+  {
+    name: "create_silence",
+    capability: "write",
+    config: {
+      title: "Create an alert silence",
+      description:
+        "Mute alerts matching label matchers for a time window — e.g. during planned maintenance. " +
+        "It expires automatically at `endsAt`, or can be ended early with expire_silence. This only " +
+        "suppresses notifications; the underlying alert rule keeps evaluating and firing.",
+      inputSchema: {
+        matchers: z
+          .array(
+            z.object({
+              name: z.string().min(1).describe("Label name to match, e.g. 'alertname' or 'severity'."),
+              value: z.string().describe("Label value (or pattern, if isRegex) to match."),
+              isRegex: z.boolean().optional().describe("Treat `value` as a regular expression. Default false."),
+              isEqual: z.boolean().optional().describe("Match equality (true) or inequality (false). Default true."),
+            }),
+          )
+          .min(1)
+          .describe("Label matchers. An alert is silenced only when it matches ALL of these."),
+        startsAt: z.string().optional().describe("ISO 8601 start time. Default: now."),
+        endsAt: z.string().describe("ISO 8601 end time — the silence stops muting automatically at this time."),
+        comment: z.string().min(1).describe("Why this silence exists, shown to anyone who looks it up later."),
+        createdBy: z.string().optional().describe("Who/what created it. Defaults to 'mcp-grafana'."),
+      },
+    },
+    handler: async (args, { client, policy }) => {
+      const { dryRun } = policy.guard({ tool: "create_silence", capability: "write" });
+      const matchers = args.matchers as Array<{ name: string; value: string; isRegex?: boolean; isEqual?: boolean }>;
+      const startsAt = (args.startsAt as string | undefined) ?? new Date().toISOString();
+      const endsAt = args.endsAt as string;
+      const comment = args.comment as string;
+      if (dryRun) {
+        return textResult(
+          `[dry-run] Would silence alerts matching ${JSON.stringify(matchers)} from ${startsAt} until ${endsAt} (${comment}).`,
+        );
+      }
+      return jsonResult(
+        await client.createSilence({
+          matchers,
+          startsAt,
+          endsAt,
+          comment,
+          createdBy: (args.createdBy as string | undefined) ?? "mcp-grafana",
+        }),
+      );
+    },
+  },
+  {
+    name: "expire_silence",
+    capability: "write",
+    config: {
+      title: "Expire a silence early",
+      description:
+        "End an active or pending silence immediately, resuming notifications for the alerts it was " +
+        "muting. Not destructive: the silence record is kept, just marked expired — it is the " +
+        "intended way to cancel a silence you created early.",
+      inputSchema: { id: z.string().min(1).describe("Silence id (from list_silences or create_silence).") },
+    },
+    handler: async (args, { client, policy }) => {
+      const id = args.id as string;
+      const { dryRun } = policy.guard({ tool: "expire_silence", capability: "write" });
+      if (dryRun) return textResult(`[dry-run] Would expire silence ${id}.`);
+      await client.expireSilence(id);
+      return textResult(`Silence ${id} expired — notifications resume for alerts it was muting.`);
     },
   },
 ];

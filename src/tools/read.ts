@@ -174,6 +174,22 @@ export const readTools: ToolDef[] = [
     },
   },
   {
+    name: "list_silences",
+    capability: "read",
+    config: {
+      title: "List alert silences",
+      description:
+        "List Alertmanager silences (pending, active and expired) — rules that mute matching alerts " +
+        "for a time window, e.g. during planned maintenance. Each has an id, the label matchers it " +
+        "mutes, its start/end time, status, comment and who created it.",
+      inputSchema: {},
+    },
+    handler: async (_args, { client, policy }) => {
+      policy.guard({ tool: "list_silences", capability: "read" });
+      return jsonResult(await client.listSilences());
+    },
+  },
+  {
     name: "list_annotations",
     capability: "read",
     config: {

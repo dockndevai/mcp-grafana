@@ -4,11 +4,11 @@
 [![CI](https://github.com/dockndevai/mcp-grafana/actions/workflows/ci.yml/badge.svg)](https://github.com/dockndevai/mcp-grafana/actions/workflows/ci.yml)
 [![licence](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
 
-A **safe-by-default** [Model Context Protocol](https://modelcontextprotocol.io) server for **Grafana**. It lets an agent explore and operate Grafana — search dashboards, read the dashboard JSON model, list and **query datasources** (Prometheus / Loki / SQL), inspect alert rules and annotations, and (in higher modes) create/update dashboards and folders, write annotations, and delete.
+A **safe-by-default** [Model Context Protocol](https://modelcontextprotocol.io) server for **Grafana**. It lets an agent explore and operate Grafana — search dashboards, read the dashboard JSON model, list and **query datasources** (Prometheus / Loki / SQL), inspect alert rules, annotations and silences, and (in higher modes) create/update dashboards and folders, write annotations, mute alerts with a silence, and delete.
 
 Part of the [dockndevai MCP server suite](https://dockndevai.github.io/) — one governance model across all of them.
 
-![mcp-grafana — safe by default: read-only exposes 11 tools; raising the access mode unlocks writes and (gated) deletes](docs/demo.gif)
+![mcp-grafana — safe by default: read-only exposes 12 tools; raising the access mode unlocks writes and (gated) deletes](docs/demo.gif)
 
 ## What it gives an agent
 
@@ -24,9 +24,12 @@ The server starts **read-only** (see [Safe by default](#safe-by-default)); highe
 | `query_datasource` | run PromQL / LogQL / SQL via the unified query API | read-only |
 | `list_alert_rules` | Grafana-managed alert rules | read-only |
 | `list_annotations` | events overlaid on graphs | read-only |
+| `list_silences` | Alertmanager silences muting alerts | read-only |
 | `create_or_update_dashboard` | upsert a dashboard (versioned, reversible) | read-write |
 | `create_folder` | create a folder | read-write |
 | `create_annotation` | mark a deploy/incident on graphs | read-write |
+| `create_silence` | mute matching alerts for a time window (e.g. maintenance) | read-write |
+| `expire_silence` | end a silence early, resuming notifications | read-write |
 | `delete_dashboard` / `delete_folder` / `delete_annotation` | delete (irreversible) | admin + `GRAFANA_ALLOW_DELETE` |
 
 ## Install
@@ -61,7 +64,7 @@ See [docs/CLIENTS.md](docs/CLIENTS.md) for Claude Code / Cursor / Codex / VS Cod
 
 The access model is enforced by [`src/security.ts`](src/security.ts) — defence in depth on top of the service-account token's own role:
 
-- **`GRAFANA_MODE`** — `read-only` (default) → `read-write` → `admin`. A tool is registered only if the mode allows its capability. Read-only exposes the 11 read tools; edits need `read-write`; deletes need `admin`.
+- **`GRAFANA_MODE`** — `read-only` (default) → `read-write` → `admin`. A tool is registered only if the mode allows its capability. Read-only exposes the 12 read tools; edits (including creating/ending a silence) need `read-write`; deletes need `admin`.
 - **`GRAFANA_ALLOW_DELETE`** — deletes are irreversible, so on top of `admin` mode they also require this flag.
 - **`GRAFANA_FOLDER_ALLOWLIST` / `GRAFANA_PROTECTED_FOLDERS`** — confine which folders can be written to; mark folders (e.g. `production`) that may be read but never modified or deleted.
 - **`GRAFANA_DATASOURCE_ALLOWLIST`** — restrict which datasources `query_datasource` may hit.

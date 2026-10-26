@@ -96,7 +96,7 @@ Create `.vscode/mcp.json` (top-level key is `servers`):
 On startup the server logs a line to **stderr** like:
 
 ```
-grafana-mcp connected to http://localhost:3000 [mode=read-only, tools=11: get_health, search, ...]
+grafana-mcp connected to http://localhost:3000 [mode=read-only, tools=12: get_health, search, ...]
 ```
 
 If `GRAFANA_TOKEN` is missing it exits with the fix printed to stderr. Ask your agent to *"list the Grafana tools"* to confirm.

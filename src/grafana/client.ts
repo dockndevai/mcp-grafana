@@ -199,6 +199,29 @@ export class GrafanaClient {
     return this.request<Array<Record<string, unknown>>>("/api/v1/provisioning/alert-rules");
   }
 
+  // --- Silences (Grafana's built-in Alertmanager) ---
+  listSilences() {
+    return this.request<Array<Record<string, unknown>>>("/api/alertmanager/grafana/api/v2/silences");
+  }
+  createSilence(body: {
+    matchers: Array<{ name: string; value: string; isRegex?: boolean; isEqual?: boolean }>;
+    startsAt: string;
+    endsAt: string;
+    createdBy: string;
+    comment: string;
+  }) {
+    return this.request<{ silenceID: string }>("/api/alertmanager/grafana/api/v2/silences", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+  /** Ends an active/pending silence immediately (Alertmanager marks it expired; it is not erased). */
+  expireSilence(id: string) {
+    return this.request<void>(`/api/alertmanager/grafana/api/v2/silence/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  }
+
   // --- Annotations ---
   listAnnotations(params: { from?: number; to?: number; limit?: number; tags?: string[] } = {}) {
     const q = new URLSearchParams();

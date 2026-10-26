@@ -83,6 +83,26 @@ describe("delete gating", () => {
   });
 });
 
+describe("silences (write capability, not folder-scoped)", () => {
+  it("rejects creating a silence in read-only mode", () => {
+    const p = makePolicy();
+    expect(() => p.guard({ tool: "create_silence", capability: "write" })).toThrow(PolicyError);
+  });
+  it("permits creating and expiring a silence in read-write mode without GRAFANA_ALLOW_DELETE", () => {
+    const p = makePolicy({ mode: "read-write" });
+    expect(() => p.guard({ tool: "create_silence", capability: "write" })).not.toThrow();
+    expect(() => p.guard({ tool: "expire_silence", capability: "write" })).not.toThrow();
+  });
+  it("flags create_silence as dry-run when GRAFANA_DRY_RUN is set", () => {
+    const p = makePolicy({ mode: "read-write", dryRun: true });
+    expect(p.guard({ tool: "create_silence", capability: "write" }).dryRun).toBe(true);
+  });
+  it("allows reading silences in read-only mode", () => {
+    const p = makePolicy();
+    expect(() => p.guard({ tool: "list_silences", capability: "read" })).not.toThrow();
+  });
+});
+
 describe("dry run", () => {
   it("flags writes but not reads", () => {
     const p = makePolicy({ mode: "read-write", dryRun: true });

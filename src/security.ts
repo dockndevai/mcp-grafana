@@ -40,11 +40,20 @@ export class PolicyError extends Error {
 export interface GuardContext {
   tool: string;
   capability: Capability;
-  /** Folder a dashboard/folder call targets (UID or title), when it names one. */
-  folder?: string;
+  /**
+   * Folder a dashboard/folder call targets, when it names one. Pass every identifier the folder is known by
+   * (its UID and its title) so the allowlist and protected list match whichever form the operator configured:
+   * the folder is protected if ANY identifier is protected, and allowed if ANY identifier is allowlisted.
+   */
+  folder?: string | string[];
   /** Datasource a query targets (UID or name), when it names one. */
   datasource?: string;
   destructive?: boolean;
+}
+
+/** Normalise a folder reference (one identifier or several) to its non-empty identifiers. */
+function folderIds(folder: string | string[] | undefined): string[] {
+  return (Array.isArray(folder) ? folder : [folder]).filter((f): f is string => typeof f === "string" && f !== "");
 }
 
 export class SecurityPolicy {
@@ -58,12 +67,21 @@ export class SecurityPolicy {
     return CAPABILITY_RANK[capability] <= MODE_RANK[this.config.mode];
   }
 
-  isFolderAllowed(folder: string): boolean {
+  isFolderAllowed(folder: string | string[]): boolean {
     if (this.config.folderAllowlist.length === 0) return true;
-    return this.config.folderAllowlist.includes(folder);
+    return folderIds(folder).some((f) => this.config.folderAllowlist.includes(f));
   }
-  isFolderProtected(folder: string): boolean {
-    return this.config.protectedFolders.includes(folder);
+  isFolderProtected(folder: string | string[]): boolean {
+    return folderIds(folder).some((f) => this.config.protectedFolders.includes(f));
+  }
+
+  /**
+   * Refuse an operation whose scope could not be established (e.g. the target's folder could not be looked
+   * up). Scope checks must fail CLOSED: an unresolvable target is denied, never waved through unchecked.
+   */
+  refuse(ctx: GuardContext, reason: string): never {
+    this.audit(ctx, "DENY", reason);
+    throw new PolicyError(reason);
   }
   isDatasourceAllowed(ds: string): boolean {
     if (this.config.datasourceAllowlist.length === 0) return true;
@@ -85,17 +103,17 @@ export class SecurityPolicy {
       );
     }
 
-    if (ctx.folder !== undefined && ctx.folder !== "" && ctx.capability !== "read") {
-      if (!this.isFolderAllowed(ctx.folder)) {
-        this.audit(ctx, "DENY", `folder '${ctx.folder}' not in allowlist`);
-        throw new PolicyError(
-          `Folder '${ctx.folder}' is not in the configured allowlist (GRAFANA_FOLDER_ALLOWLIST).`,
-        );
+    const folder = folderIds(ctx.folder);
+    if (folder.length > 0 && ctx.capability !== "read") {
+      const label = folder.join(" / ");
+      if (!this.isFolderAllowed(folder)) {
+        this.audit(ctx, "DENY", `folder '${label}' not in allowlist`);
+        throw new PolicyError(`Folder '${label}' is not in the configured allowlist (GRAFANA_FOLDER_ALLOWLIST).`);
       }
-      if (this.isFolderProtected(ctx.folder)) {
-        this.audit(ctx, "DENY", `folder '${ctx.folder}' is protected`);
+      if (this.isFolderProtected(folder)) {
+        this.audit(ctx, "DENY", `folder '${label}' is protected`);
         throw new PolicyError(
-          `Folder '${ctx.folder}' is protected (GRAFANA_PROTECTED_FOLDERS); it can be read but not modified.`,
+          `Folder '${label}' is protected (GRAFANA_PROTECTED_FOLDERS); it can be read but not modified.`,
         );
       }
     }
@@ -120,7 +138,7 @@ export class SecurityPolicy {
       decision,
       tool: ctx.tool,
       capability: ctx.capability,
-      folder: ctx.folder ?? null,
+      folder: folderIds(ctx.folder).join(" / ") || null,
       datasource: ctx.datasource ?? null,
       destructive: ctx.destructive ?? false,
       ...(reason ? { reason } : {}),

@@ -50,6 +50,7 @@ export function loadConfig(): AppConfig {
       allowDelete: bool("GRAFANA_ALLOW_DELETE", false),
       dryRun: bool("GRAFANA_DRY_RUN", false),
       auditLog: bool("GRAFANA_AUDIT_LOG", true),
+      requireHumanApproval: bool("GRAFANA_REQUIRE_HUMAN_APPROVAL", false),
     },
   };
 }

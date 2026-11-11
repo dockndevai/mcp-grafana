@@ -9,6 +9,7 @@
  * Datasource secrets (`secureJsonData`, `basicAuthPassword`, …) are never returned to the model:
  * see `redactDatasource`.
  */
+import { createHash } from "node:crypto";
 
 export class GrafanaError extends Error {
   constructor(
@@ -73,6 +74,10 @@ export interface DsQuery {
   extra?: Record<string, unknown>;
   maxDataPoints?: number;
   intervalMs?: number;
+}
+
+function hash(parts: unknown[]): string {
+  return createHash("sha256").update(JSON.stringify(parts)).digest("hex").slice(0, 12);
 }
 
 export class GrafanaClient {
@@ -166,6 +171,59 @@ export class GrafanaClient {
   }
   deleteFolder(uid: string) {
     return this.request<{ message?: string }>(`/api/folders/${encodeURIComponent(uid)}`, { method: "DELETE" });
+  }
+
+  // --- Version tokens (pinned across a human approval prompt; see elicit.ts) ---
+  // Each returns `undefined` when the object does not exist (404) and throws on any other error,
+  // which the confirmer treats as "unbound" rather than failing the approval.
+  private async versionOf<T>(read: () => Promise<T>, token: (v: T) => string): Promise<string | undefined> {
+    try {
+      return token(await read());
+    } catch (err) {
+      if (err instanceof GrafanaError && err.status === 404) return undefined;
+      throw err;
+    }
+  }
+
+  /**
+   * Dashboard token: `uid`, numeric `id`, the dashboard `version` (bumped by every save) and its folder.
+   * Limit: Grafana exposes no native precondition on DELETE, so a delete-and-recreate that happens to
+   * land on the same uid, id and version is not distinguishable.
+   */
+  dashboardVersion(uid: string) {
+    return this.versionOf(
+      () => this.getDashboard(uid),
+      (d) => {
+        const db = d.dashboard;
+        return `uid=${String(db.uid ?? uid)};id=${String(db.id ?? "")};version=${String(db.version ?? "")};folder=${String(d.meta?.folderUid ?? "")}`;
+      },
+    );
+  }
+
+  /**
+   * Folder token: a hash of the stable identity fields only (`id`, `uid`, `title`, `parentUid`, `created`).
+   * Deliberately excludes `version`/`updated` and anything about the folder's contents. Limit: dashboards
+   * added to or removed from the folder while the human is deciding are NOT detected, although deleting
+   * the folder deletes everything in it; the prompt cannot vouch for the folder's contents.
+   */
+  folderVersion(uid: string) {
+    return this.versionOf(
+      () => this.getFolder(uid) as Promise<Folder & { id?: number; created?: string }>,
+      (f) => hash([f.id, f.uid, f.title, f.parentUid ?? "", f.created ?? ""]),
+    );
+  }
+
+  /**
+   * Annotation token: a hash of `id`, `dashboardUID`, `panelId`, `time`, `timeEnd`, `text` and `tags`, so an
+   * edit to the annotation is a change. Limit: relies on `GET /api/annotations/:id`; an annotation re-created
+   * with identical content and the same id is not distinguishable.
+   */
+  annotationVersion(id: number) {
+    return this.versionOf(
+      () => this.request<Record<string, unknown>>(`/api/annotations/${id}`),
+      (a) =>
+        hash([a.id, a.dashboardUID ?? "", a.panelId ?? "", a.time, a.timeEnd ?? "", a.text, [...((a.tags as string[]) ?? [])].sort()]),
+    );
   }
 
   // --- Datasources ---

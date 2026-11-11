@@ -22,6 +22,14 @@ needs.
 - **Restrict datasources.** `GRAFANA_DATASOURCE_ALLOWLIST` limits which datasources `query_datasource`
   may hit — useful to keep an agent away from sensitive datasources.
 - **Gate deletes.** `delete_*` require both `admin` mode and `GRAFANA_ALLOW_DELETE=true`.
+- **Require a human for destructive ops.** Set `GRAFANA_REQUIRE_HUMAN_APPROVAL=true` so `delete_dashboard`,
+  `delete_folder` and `delete_annotation` are refused when the client cannot show an approval prompt.
+  Each approval is bound to the exact tool and arguments (fingerprint) and to the target's version:
+  a dashboard's uid, id, `version` and folder; a folder's id, uid, title, parent and creation time (not
+  its contents, so dashboards added or removed while the human is deciding are not detected); an
+  annotation's id, dashboard/panel, times, text and tags. If the target changed while the human was
+  deciding, the action is refused. `delete_folder` also asks the human to type the folder UID. Approval
+  receipts are written to the audit log (`"audit":"approval"`, with `approvedBy` = `human` or `flag-only`).
 - **Preview with dry-run.** `GRAFANA_DRY_RUN=true` validates and logs write intent without executing.
 - **Secrets never leave Grafana.** Datasource `secureJsonData`, `basicAuthPassword` and similar
   fields are stripped from every response — the model sees a datasource's uid/name/type/url, never

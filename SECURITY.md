@@ -17,13 +17,26 @@ needs.
   A tool is registered only if the mode allows its capability, and each call is re-checked at
   runtime (`src/security.ts`).
 - **Protect folders.** Folders listed in `GRAFANA_PROTECTED_FOLDERS` (e.g. `production`) can be read
-  but never written to or deleted. Deletes resolve the target's folder first so this applies to
-  deletes too: `delete_dashboard` uses the dashboard's folder, `delete_folder` the folder itself, and
-  `delete_annotation` the folder of the dashboard the annotation is attached to (organisation-wide
-  annotations have no folder). Folders are matched by UID **or** title, whichever form you configured.
-  This **fails closed**: if the folder cannot be resolved (Grafana unreachable, an error or permission
-  failure, or an annotation tied to a dashboard by numeric id only), the delete is refused rather than
-  skipping the folder checks.
+  but never written to or deleted. Folders are matched by UID **or** title, whichever form you configured.
+  - *Writes.* `create_or_update_dashboard` checks the folder it saves to **and**, when the model's `uid`
+    already exists, the folder that dashboard currently sits in, so an overwrite cannot edit or move a
+    dashboard out of a protected (or non-allowlisted) folder. A model that names an existing dashboard only
+    by numeric `id` (no `uid`, or an `id` that does not belong to its `uid`) is refused. `create_annotation`
+    on a dashboard checks that dashboard's folder; an annotation with no dashboard is organisation-level and
+    is not folder-scoped. `create_folder` checks the parent folder.
+  - *Deletes.* `delete_dashboard` uses the dashboard's folder, `delete_folder` the folder itself, and
+    `delete_annotation` the folder of the dashboard the annotation is attached to.
+  - *General folder.* Calls that name no folder act on the General (root) folder, which is scoped like any
+    other: with `GRAFANA_FOLDER_ALLOWLIST` set, writes to General (including a dashboard saved with no
+    `folderUid`, a root-level `create_folder`, and deleting a dashboard in General) are refused unless
+    `General` (or `general`) is on the allowlist, and `General` can be listed in `GRAFANA_PROTECTED_FOLDERS`.
+  - *Nested folders.* A protected parent protects all of its sub-folders: the folder's parents are walked
+    through the API, and a protected ancestor refuses the operation. `delete_folder` also refuses if any
+    folder nested under it, at any depth, is protected (deleting it would delete the protected folder too).
+  - *Fails closed.* If a folder, one of its parents, or a folder's sub-folder list cannot be resolved (Grafana
+    unreachable, an error or permission failure, a parent loop, or an annotation tied to a dashboard by numeric
+    id only), the operation is refused rather than skipping the folder checks. Writes only look folders up when a
+    folder rule is configured; deletes always resolve their target.
 - **Restrict datasources.** `GRAFANA_DATASOURCE_ALLOWLIST` limits which datasources `query_datasource`
   may hit — useful to keep an agent away from sensitive datasources.
 - **Gate deletes.** `delete_*` require both `admin` mode and `GRAFANA_ALLOW_DELETE=true`.
@@ -42,14 +55,13 @@ needs.
 
 ## Limitations
 
-- Folder allowlist/protection is enforced on the folder a call names (or, for deletes, the folder
-  resolved from the target). Nested folders are not walked: a protected parent folder does not protect
-  its sub-folders, and deleting a folder does not check the folders inside it. Querying data through
+- Folder allowlist/protection is enforced on the folder a call names (or, for deletes and annotations, the
+  folder resolved from the target). An allowlisted parent folder does **not** allow its sub-folders: the
+  allowlist matches the folder itself (protection, by contrast, is inherited, see above). Querying data through
   `query_datasource` is bounded by the datasource allowlist and the token's permissions, not by folder
   rules.
-- Writes check only the folder they name: `create_or_update_dashboard` checks the `folderUid` argument, not
-  the folder an existing dashboard (with `overwrite`) currently lives in, and `create_annotation` does not
-  check the folder of the `dashboardUID` it attaches to.
+- The checks read the target's folder just before the write, so a folder move made by someone else in that
+  window is not detected (the checks are not atomic with the write).
 - `create_or_update_dashboard` trusts the JSON model you pass. Dashboards are versioned in Grafana,
   so a bad edit is recoverable via history; deletes are not.
 

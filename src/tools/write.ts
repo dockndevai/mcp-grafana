@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { ToolDef } from "./types.js";
 import { jsonResult, textResult } from "./types.js";
+import type { GuardContext } from "../security.js";
+import { dashboardFolder, existingDashboardFolder, resolveFolder } from "./scope.js";
 
 /**
  * Write tools. Registered only in `read-write` mode and up. They create or update dashboards,
@@ -21,15 +23,26 @@ export const writeTools: ToolDef[] = [
         "Put it in a folder with `folderUid`.",
       inputSchema: {
         dashboard: z.record(z.string(), z.any()).describe("The dashboard JSON model (see get_dashboard for the shape)."),
-        folderUid: z.string().optional().describe("Target folder UID. Omit for the General folder."),
+        folderUid: z.string().optional().describe("Target folder UID. Omit for the General folder (subject to the folder allowlist / protected folders like any other)."),
         message: z.string().optional().describe("Version note recorded in the dashboard history."),
         overwrite: z.boolean().optional().describe("Set true when updating an existing dashboard by uid."),
       },
     },
     handler: async (args, { client, policy }) => {
-      const folderUid = args.folderUid as string | undefined;
-      const { dryRun } = policy.guard({ tool: "create_or_update_dashboard", capability: "write", folder: folderUid });
+      const folderUid = (args.folderUid as string | undefined) || undefined;
       const dashboard = args.dashboard as Record<string, unknown>;
+      const base: GuardContext = { tool: "create_or_update_dashboard", capability: "write" };
+      // The save touches the target folder (an omitted folderUid is the General folder) AND, when the model's uid
+      // already exists, the folder that dashboard sits in now: overwriting can edit or move a dashboard out of a
+      // protected or non-allowlisted folder. Both are checked; any lookup failure refuses (fails closed).
+      const target = await resolveFolder(client, policy, base, folderUid);
+      const current = policy.hasFolderRules ? await existingDashboardFolder(client, policy, base, dashboard) : undefined;
+      const { dryRun } = policy.guard({
+        ...base,
+        folder: target.folder,
+        ancestors: target.ancestors,
+        otherFolders: current ? [current] : [],
+      });
       if (dryRun) {
         return textResult(
           `[dry-run] Would save dashboard '${(dashboard.title as string) ?? dashboard.uid ?? "(untitled)"}'` +
@@ -59,8 +72,11 @@ export const writeTools: ToolDef[] = [
       },
     },
     handler: async (args, { client, policy }) => {
-      const parentUid = args.parentUid as string | undefined;
-      const { dryRun } = policy.guard({ tool: "create_folder", capability: "write", folder: parentUid });
+      const parentUid = (args.parentUid as string | undefined) || undefined;
+      const base: GuardContext = { tool: "create_folder", capability: "write" };
+      // A folder created with no parent lives in the General (root) folder, so that is the folder checked.
+      const parent = await resolveFolder(client, policy, base, parentUid);
+      const { dryRun } = policy.guard({ ...base, folder: parent.folder, ancestors: parent.ancestors });
       if (dryRun) return textResult(`[dry-run] Would create folder '${args.title as string}'.`);
       return jsonResult(
         await client.createFolder({ title: args.title as string, uid: args.uid as string | undefined, parentUid }),
@@ -85,7 +101,12 @@ export const writeTools: ToolDef[] = [
       },
     },
     handler: async (args, { client, policy }) => {
-      const { dryRun } = policy.guard({ tool: "create_annotation", capability: "write" });
+      const base: GuardContext = { tool: "create_annotation", capability: "write" };
+      const dashboardUID = (args.dashboardUID as string | undefined) || undefined;
+      // An annotation attached to a dashboard inherits that dashboard's folder scope (fails closed). An
+      // annotation with no dashboard is organisation-level and has no folder.
+      const scope = dashboardUID && policy.hasFolderRules ? await dashboardFolder(client, policy, base, dashboardUID) : undefined;
+      const { dryRun } = policy.guard({ ...base, folder: scope?.folder, ancestors: scope?.ancestors });
       if (dryRun) return textResult(`[dry-run] Would create annotation: ${args.text as string}`);
       return jsonResult(
         await client.createAnnotation({
@@ -93,7 +114,7 @@ export const writeTools: ToolDef[] = [
           tags: args.tags as string[] | undefined,
           time: args.time as number | undefined,
           timeEnd: args.timeEnd as number | undefined,
-          dashboardUID: args.dashboardUID as string | undefined,
+          dashboardUID,
           panelId: args.panelId as number | undefined,
         }),
       );

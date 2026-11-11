@@ -63,7 +63,7 @@ The access model is enforced by [`src/security.ts`](src/security.ts) — defence
 
 - **`GRAFANA_MODE`** — `read-only` (default) → `read-write` → `admin`. A tool is registered only if the mode allows its capability. Read-only exposes the 11 read tools; edits need `read-write`; deletes need `admin`.
 - **`GRAFANA_ALLOW_DELETE`** — deletes are irreversible, so on top of `admin` mode they also require this flag.
-- **`GRAFANA_FOLDER_ALLOWLIST` / `GRAFANA_PROTECTED_FOLDERS`** — confine which folders can be written to; mark folders (e.g. `production`) that may be read but never modified or deleted.
+- **`GRAFANA_FOLDER_ALLOWLIST` / `GRAFANA_PROTECTED_FOLDERS`** — confine which folders can be written to; mark folders (e.g. `production`) that may be read but never modified or deleted. Matched by folder UID or title; deletes (including `delete_annotation`, via the annotation's dashboard) resolve the target's folder first and are refused if it cannot be resolved.
 - **`GRAFANA_DATASOURCE_ALLOWLIST`** — restrict which datasources `query_datasource` may hit.
 - **`GRAFANA_DRY_RUN`** — validate and log writes without executing them.
 - **`GRAFANA_AUDIT_LOG`** — a JSON audit line per guarded operation, on stderr (default on).

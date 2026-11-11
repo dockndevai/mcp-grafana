@@ -220,7 +220,7 @@ export class GrafanaClient {
    */
   annotationVersion(id: number) {
     return this.versionOf(
-      () => this.request<Record<string, unknown>>(`/api/annotations/${id}`),
+      () => this.getAnnotation(id),
       (a) =>
         hash([a.id, a.dashboardUID ?? "", a.panelId ?? "", a.time, a.timeEnd ?? "", a.text, [...((a.tags as string[]) ?? [])].sort()]),
     );
@@ -271,6 +271,9 @@ export class GrafanaClient {
       method: "POST",
       body: JSON.stringify(body),
     });
+  }
+  getAnnotation(id: number) {
+    return this.request<Record<string, unknown>>(`/api/annotations/${id}`);
   }
   deleteAnnotation(id: number) {
     return this.request<{ message?: string }>(`/api/annotations/${id}`, { method: "DELETE" });

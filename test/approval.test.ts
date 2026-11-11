@@ -46,6 +46,14 @@ function stubDashboardLookup() {
   vi.spyOn(GrafanaClient.prototype, "getDashboard").mockResolvedValue({ dashboard: { uid: "d1" }, meta: { folderUid: "f9" } });
 }
 
+/** Folder / annotation lookups now precede the folder-scope checks; stub them as healthy. */
+function stubFolderLookup() {
+  vi.spyOn(GrafanaClient.prototype, "getFolder").mockResolvedValue({ uid: "f1", title: "Ops" });
+}
+function stubAnnotationLookup() {
+  vi.spyOn(GrafanaClient.prototype, "getAnnotation").mockResolvedValue({ id: 5, dashboardId: 0, text: "x", time: 1 });
+}
+
 describe("delete_dashboard approval (end to end)", () => {
   it("shows the tool, full arguments, version and fingerprint, then deletes", async () => {
     stubDashboardLookup();
@@ -84,6 +92,7 @@ describe("delete_dashboard approval (end to end)", () => {
 
 describe("delete_folder approval (end to end)", () => {
   it("asks for the typed folder uid and deletes when it matches and the version is stable", async () => {
+    stubFolderLookup();
     vi.spyOn(GrafanaClient.prototype, "folderVersion").mockResolvedValue("abc123");
     const del = vi.spyOn(GrafanaClient.prototype, "deleteFolder").mockResolvedValue({ message: "Folder deleted" });
     const { client, prompts } = await connect({});
@@ -96,6 +105,7 @@ describe("delete_folder approval (end to end)", () => {
   });
 
   it("does NOT delete when the typed confirmation does not match", async () => {
+    stubFolderLookup();
     vi.spyOn(GrafanaClient.prototype, "folderVersion").mockResolvedValue("abc123");
     const del = vi.spyOn(GrafanaClient.prototype, "deleteFolder").mockResolvedValue({});
     const { client } = await connect({ answer: () => ({ action: "accept", content: { confirm: true, typed: "wrong" } }) });
@@ -105,6 +115,7 @@ describe("delete_folder approval (end to end)", () => {
   });
 
   it("does NOT delete when the folder was renamed or replaced while the human was deciding", async () => {
+    stubFolderLookup();
     const versions = ["h1", "h2"];
     vi.spyOn(GrafanaClient.prototype, "folderVersion").mockImplementation(async () => versions.shift());
     const del = vi.spyOn(GrafanaClient.prototype, "deleteFolder").mockResolvedValue({});
@@ -117,6 +128,7 @@ describe("delete_folder approval (end to end)", () => {
 
 describe("delete_annotation approval (end to end)", () => {
   it("refuses when the annotation changed while the human was deciding", async () => {
+    stubAnnotationLookup();
     const versions = ["a1", "a2"];
     vi.spyOn(GrafanaClient.prototype, "annotationVersion").mockImplementation(async () => versions.shift());
     const del = vi.spyOn(GrafanaClient.prototype, "deleteAnnotation").mockResolvedValue({});
@@ -127,6 +139,7 @@ describe("delete_annotation approval (end to end)", () => {
   });
 
   it("deletes when the version is stable", async () => {
+    stubAnnotationLookup();
     vi.spyOn(GrafanaClient.prototype, "annotationVersion").mockResolvedValue("a1");
     const del = vi.spyOn(GrafanaClient.prototype, "deleteAnnotation").mockResolvedValue({ message: "ok" });
     const { client } = await connect({});
@@ -146,6 +159,7 @@ describe("GRAFANA_REQUIRE_HUMAN_APPROVAL", () => {
   });
 
   it("refuses to delete when the client cannot elicit and human approval is required", async () => {
+    stubFolderLookup();
     stubDashboardLookup();
     vi.spyOn(GrafanaClient.prototype, "dashboardVersion").mockResolvedValue("v1");
     vi.spyOn(GrafanaClient.prototype, "folderVersion").mockResolvedValue("h");

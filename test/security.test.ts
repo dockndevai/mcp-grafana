@@ -56,6 +56,34 @@ describe("folder allowlist + protection", () => {
   });
 });
 
+describe("folder given as several identifiers (uid + title)", () => {
+  it("is protected when ANY identifier is protected", () => {
+    const p = makePolicy({ mode: "admin", allowDelete: true });
+    expect(() =>
+      p.guard({ tool: "delete_folder", capability: "admin", destructive: true, folder: ["f1", "production"] }),
+    ).toThrow(/protected/);
+    expect(() =>
+      p.guard({ tool: "delete_folder", capability: "admin", destructive: true, folder: ["production", "f1"] }),
+    ).toThrow(/protected/);
+  });
+  it("is allowed when ANY identifier is allowlisted, denied when none is", () => {
+    const p = makePolicy({ mode: "admin", allowDelete: true, folderAllowlist: ["Team A"] });
+    expect(() => p.guard({ tool: "delete_folder", capability: "admin", destructive: true, folder: ["fa", "Team A"] })).not.toThrow();
+    expect(() => p.guard({ tool: "delete_folder", capability: "admin", destructive: true, folder: ["fb", "Team B"] })).toThrow(/allowlist/);
+  });
+  it("ignores empty identifiers", () => {
+    const p = makePolicy({ mode: "admin", allowDelete: true, folderAllowlist: ["Team A"] });
+    expect(() => p.guard({ tool: "delete_folder", capability: "admin", destructive: true, folder: ["", ""] })).not.toThrow();
+  });
+});
+
+describe("refuse (fail-closed scope resolution)", () => {
+  it("throws a PolicyError carrying the reason", () => {
+    const p = makePolicy({ mode: "admin", allowDelete: true });
+    expect(() => p.refuse({ tool: "delete_dashboard", capability: "admin", destructive: true }, "cannot resolve")).toThrow(PolicyError);
+  });
+});
+
 describe("datasource allowlist", () => {
   it("blocks queries to datasources outside a non-empty allowlist", () => {
     const p = makePolicy({ datasourceAllowlist: ["prod-prom"] });

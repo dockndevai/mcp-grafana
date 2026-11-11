@@ -17,8 +17,13 @@ needs.
   A tool is registered only if the mode allows its capability, and each call is re-checked at
   runtime (`src/security.ts`).
 - **Protect folders.** Folders listed in `GRAFANA_PROTECTED_FOLDERS` (e.g. `production`) can be read
-  but never written to or deleted. Deletes resolve a dashboard's folder first so this applies to
-  deletes too.
+  but never written to or deleted. Deletes resolve the target's folder first so this applies to
+  deletes too: `delete_dashboard` uses the dashboard's folder, `delete_folder` the folder itself, and
+  `delete_annotation` the folder of the dashboard the annotation is attached to (organisation-wide
+  annotations have no folder). Folders are matched by UID **or** title, whichever form you configured.
+  This **fails closed**: if the folder cannot be resolved (Grafana unreachable, an error or permission
+  failure, or an annotation tied to a dashboard by numeric id only), the delete is refused rather than
+  skipping the folder checks.
 - **Restrict datasources.** `GRAFANA_DATASOURCE_ALLOWLIST` limits which datasources `query_datasource`
   may hit — useful to keep an agent away from sensitive datasources.
 - **Gate deletes.** `delete_*` require both `admin` mode and `GRAFANA_ALLOW_DELETE=true`.
@@ -38,8 +43,13 @@ needs.
 ## Limitations
 
 - Folder allowlist/protection is enforced on the folder a call names (or, for deletes, the folder
-  resolved from the dashboard). Querying data through `query_datasource` is bounded by the datasource
-  allowlist and the token's permissions, not by folder rules.
+  resolved from the target). Nested folders are not walked: a protected parent folder does not protect
+  its sub-folders, and deleting a folder does not check the folders inside it. Querying data through
+  `query_datasource` is bounded by the datasource allowlist and the token's permissions, not by folder
+  rules.
+- Writes check only the folder they name: `create_or_update_dashboard` checks the `folderUid` argument, not
+  the folder an existing dashboard (with `overwrite`) currently lives in, and `create_annotation` does not
+  check the folder of the `dashboardUID` it attaches to.
 - `create_or_update_dashboard` trusts the JSON model you pass. Dashboards are versioned in Grafana,
   so a bad edit is recoverable via history; deletes are not.
 

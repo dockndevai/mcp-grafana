@@ -12,6 +12,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   already passed). A prompt nobody answered therefore auto-approved a destructive operation. A timeout is
   now a refusal, and the wait defaults to 5 minutes.
 
+- **Folder checks on deletes now fail closed.** `delete_dashboard` swallowed a failed folder lookup and
+  carried on with no folder, so a transient Grafana error or permission failure skipped the
+  `GRAFANA_PROTECTED_FOLDERS` and `GRAFANA_FOLDER_ALLOWLIST` checks and let the delete through. It is now
+  refused with a clear error.
+- **`delete_folder` matches protected folders by title as well as UID.** It passed only the UID to the
+  policy, so a title in `GRAFANA_PROTECTED_FOLDERS` never matched. `delete_dashboard` likewise passed only
+  one of the folder's UID/title. Both now check every identifier (protected if any matches; allowed if any
+  is allowlisted); `delete_folder` looks the folder up and refuses if it cannot.
+- **`delete_annotation` is folder-scoped.** An annotation attached to a dashboard in a protected (or
+  non-allowlisted) folder can no longer be deleted: the annotation's `dashboardUID` is resolved to its
+  folder first. Organisation-wide annotations are unaffected; an annotation or dashboard that cannot be
+  resolved, or one tied to a dashboard by numeric id only, is refused.
+
 ### Added
 - **Approvals are bound to the exact action.** The prompt shows the tool, the full (secret-redacted)
   arguments and a fingerprint; every approval and refusal is written to the audit log as

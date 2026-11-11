@@ -71,9 +71,58 @@ describe("folder given as several identifiers (uid + title)", () => {
     expect(() => p.guard({ tool: "delete_folder", capability: "admin", destructive: true, folder: ["fa", "Team A"] })).not.toThrow();
     expect(() => p.guard({ tool: "delete_folder", capability: "admin", destructive: true, folder: ["fb", "Team B"] })).toThrow(/allowlist/);
   });
-  it("ignores empty identifiers", () => {
+  it("ignores empty identifiers when others are present", () => {
     const p = makePolicy({ mode: "admin", allowDelete: true, folderAllowlist: ["Team A"] });
-    expect(() => p.guard({ tool: "delete_folder", capability: "admin", destructive: true, folder: ["", ""] })).not.toThrow();
+    expect(() => p.guard({ tool: "delete_folder", capability: "admin", destructive: true, folder: ["", "Team A"] })).not.toThrow();
+  });
+});
+
+describe("the General folder is scoped explicitly", () => {
+  const w = (folder?: string | string[]) => ({ tool: "create_or_update_dashboard", capability: "write" as const, folder });
+  it("treats a blank folder as General: refused when an allowlist omits it", () => {
+    const p = makePolicy({ mode: "read-write", folderAllowlist: ["Team A"] });
+    expect(() => p.guard(w(""))).toThrow(/General.*allowlist/s);
+    expect(() => p.guard(w(["", ""]))).toThrow(/allowlist/);
+    expect(() => p.guard(w([]))).toThrow(/allowlist/);
+  });
+  it("allows General when it is allowlisted as General or general", () => {
+    expect(() => makePolicy({ mode: "read-write", folderAllowlist: ["General"] }).guard(w(""))).not.toThrow();
+    expect(() => makePolicy({ mode: "read-write", folderAllowlist: ["general"] }).guard(w(""))).not.toThrow();
+  });
+  it("applies protected-folder rules to General", () => {
+    expect(() => makePolicy({ mode: "read-write", protectedFolders: ["General"] }).guard(w(""))).toThrow(/protected/);
+    expect(() => makePolicy({ mode: "read-write", protectedFolders: ["general"] }).guard(w(""))).toThrow(/protected/);
+  });
+  it("does not scope a call that names no folder at all (undefined)", () => {
+    const p = makePolicy({ mode: "read-write", folderAllowlist: ["Team A"] });
+    expect(() => p.guard(w(undefined))).not.toThrow();
+  });
+  it("does not scope reads", () => {
+    const p = makePolicy({ folderAllowlist: ["Team A"] });
+    expect(() => p.guard({ tool: "get_dashboard", capability: "read", folder: "" })).not.toThrow();
+  });
+});
+
+describe("ancestors and extra folders", () => {
+  const w = (extra: object) => ({ tool: "create_or_update_dashboard", capability: "write" as const, ...extra });
+  it("a protected ancestor protects the folder", () => {
+    const p = makePolicy({ mode: "read-write", protectedFolders: ["Production"] });
+    expect(() => p.guard(w({ folder: ["svc", "Services"], ancestors: ["prod", "Production"] }))).toThrow(/inside a protected folder/);
+    expect(() => p.guard(w({ folder: ["svc", "Services"], ancestors: ["other"] }))).not.toThrow();
+  });
+  it("an allowlisted ancestor does NOT allow the folder", () => {
+    const p = makePolicy({ mode: "read-write", folderAllowlist: ["Team A"], protectedFolders: [] });
+    expect(() => p.guard(w({ folder: ["sub", "Sub"], ancestors: ["Team A"] }))).toThrow(/allowlist/);
+  });
+  it("checks every folder in otherFolders", () => {
+    const p = makePolicy({ mode: "read-write", protectedFolders: ["Production"] });
+    expect(() => p.guard(w({ folder: "ok", otherFolders: [{ folder: ["prod", "Production"] }] }))).toThrow(/protected/);
+    expect(() => p.guard(w({ folder: "ok", otherFolders: [{ folder: "ok2" }] }))).not.toThrow();
+  });
+  it("reports whether folder rules are configured", () => {
+    expect(makePolicy({ protectedFolders: [] }).hasFolderRules).toBe(false);
+    expect(makePolicy({ protectedFolders: [], folderAllowlist: ["a"] }).hasFolderRules).toBe(true);
+    expect(makePolicy({ protectedFolders: ["p"] }).hasProtectedFolders).toBe(true);
   });
 });
 

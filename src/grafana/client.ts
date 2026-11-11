@@ -163,6 +163,10 @@ export class GrafanaClient {
   listFolders() {
     return this.request<Folder[]>("/api/folders?limit=1000");
   }
+  /** Direct children of a folder (nested folders). A result of exactly `limit` entries may be truncated. */
+  listSubfolders(parentUid: string, limit = 1000) {
+    return this.request<Folder[]>(`/api/folders?parentUid=${encodeURIComponent(parentUid)}&limit=${limit}`);
+  }
   getFolder(uid: string) {
     return this.request<Folder>(`/api/folders/${encodeURIComponent(uid)}`);
   }

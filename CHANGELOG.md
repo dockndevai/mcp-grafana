@@ -28,6 +28,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   folder first. Organisation-wide annotations are unaffected; an annotation or dashboard that cannot be
   resolved, or one tied to a dashboard by numeric id only, is refused.
 
+- **Writes are folder-scoped on the folder they actually touch.**
+  - `create_or_update_dashboard` checked only the `folderUid` argument, so with `overwrite` it could overwrite
+    or move a dashboard that currently sits in a protected (or non-allowlisted) folder by omitting `folderUid`
+    or naming another. When the model's `uid` already exists, its current folder is now resolved and checked as
+    well as the target; a lookup error refuses. A model that names an existing dashboard only by numeric `id`
+    (no `uid`, or an `id` that does not belong to its `uid`) is refused, since Grafana honours `id` when saving.
+  - `create_annotation` now resolves the folder of the `dashboardUID` it attaches to and applies the allowlist
+    and protected-folder checks (refusing if it cannot). Annotations with no dashboard stay allowed.
+  - Writes also match the target folder by title (previously only the UID was checked, so a title in
+    `GRAFANA_PROTECTED_FOLDERS` / the allowlist never matched a `folderUid` argument).
+- **The General folder is no longer exempt.** A call with no folder (a dashboard saved without `folderUid`, a
+  root-level `create_folder`, a delete of a dashboard that lives in General) skipped the allowlist entirely.
+  It is now the folder `General` (also accepted as `general`): refused under an allowlist unless listed, and
+  it can be listed in `GRAFANA_PROTECTED_FOLDERS`. If you set an allowlist and write to General, add `General`.
+- **Nested folders.** A protected parent now protects its sub-folders (parents are walked through the API,
+  failing closed on a lookup error, a loop or excessive depth), for every write and delete.
+  `delete_folder` refuses if any folder nested under it, at any depth, is protected.
+
 ### Added
 - **Approvals are bound to the exact action.** The prompt shows the tool, the full (secret-redacted)
   arguments and a fingerprint; every approval and refusal is written to the audit log as

@@ -51,7 +51,9 @@ function spies() {
     delFolder: vi.spyOn(GrafanaClient.prototype, "deleteFolder").mockResolvedValue({ message: "deleted" }),
     delAnno: vi.spyOn(GrafanaClient.prototype, "deleteAnnotation").mockResolvedValue({ message: "deleted" }),
     getDash: vi.spyOn(GrafanaClient.prototype, "getDashboard"),
-    getFolder: vi.spyOn(GrafanaClient.prototype, "getFolder"),
+    // Default: a root folder with no parent (ancestors are walked when protected folders are configured).
+    getFolder: vi.spyOn(GrafanaClient.prototype, "getFolder").mockImplementation(async (uid: string) => ({ uid, title: uid })),
+    listSubfolders: vi.spyOn(GrafanaClient.prototype, "listSubfolders").mockResolvedValue([]),
     getAnno: vi.spyOn(GrafanaClient.prototype, "getAnnotation"),
   };
 }

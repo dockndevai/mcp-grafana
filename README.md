@@ -67,7 +67,8 @@ The access model is enforced by [`src/security.ts`](src/security.ts) — defence
 - **`GRAFANA_DATASOURCE_ALLOWLIST`** — restrict which datasources `query_datasource` may hit.
 - **`GRAFANA_DRY_RUN`** — validate and log writes without executing them.
 - **`GRAFANA_AUDIT_LOG`** — a JSON audit line per guarded operation, on stderr (default on).
-- **Interactive confirmation** — when the client supports MCP elicitation, deleting a dashboard/folder/annotation prompts the **human** to approve before it runs; clients that can't elicit fall back to the `GRAFANA_ALLOW_DELETE` gate.
+- **Interactive confirmation** — when the client supports MCP elicitation, deleting a dashboard/folder/annotation prompts the **human** to approve before it runs. The prompt shows the tool, the exact arguments and a fingerprint; the target's version is pinned across the prompt and the action is refused if it changed; a prompt nobody answers is a refusal. Clients that can't elicit fall back to the `GRAFANA_ALLOW_DELETE` gate.
+- **`GRAFANA_REQUIRE_HUMAN_APPROVAL`** — default `false`. When `true`, deletes are **refused** if the client cannot elicit (instead of falling back to the `GRAFANA_ALLOW_DELETE` gate alone).
 - **Secrets are never returned** — datasource `secureJsonData`, passwords and tokens are stripped from every response.
 
 ![Interactive confirmation — the agent asks to delete a dashboard; the server pauses and asks the human via MCP elicitation. Declining leaves the dashboard untouched; approving proceeds.](docs/confirm-demo.gif)

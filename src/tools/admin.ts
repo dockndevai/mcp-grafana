@@ -31,7 +31,12 @@ export const adminTools: ToolDef[] = [
       }
       const { dryRun } = policy.guard({ tool: "delete_dashboard", capability: "admin", destructive: true, folder });
       if (dryRun) return textResult(`[dry-run] Would delete dashboard ${uid}.`);
-      const ok = await confirm.confirm({ action: "delete dashboard", target: uid, details: { folder } });
+      const ok = await confirm.confirm({
+        action: "delete dashboard",
+        target: uid,
+        details: { folder },
+        probe: () => client.dashboardVersion(uid),
+      });
       if (!ok.approved) return textResult(`Deletion cancelled — ${ok.reason}.`);
       return jsonResult(await client.deleteDashboard(uid));
     },
@@ -51,7 +56,12 @@ export const adminTools: ToolDef[] = [
       const uid = args.uid as string;
       const { dryRun } = policy.guard({ tool: "delete_folder", capability: "admin", destructive: true, folder: uid });
       if (dryRun) return textResult(`[dry-run] Would delete folder ${uid} and its dashboards.`);
-      const ok = await confirm.confirm({ action: "delete folder (and its dashboards)", target: uid });
+      const ok = await confirm.confirm({
+        action: "delete folder (and its dashboards)",
+        target: uid,
+        typed: true,
+        probe: () => client.folderVersion(uid),
+      });
       if (!ok.approved) return textResult(`Deletion cancelled — ${ok.reason}.`);
       return jsonResult(await client.deleteFolder(uid));
     },
@@ -69,7 +79,11 @@ export const adminTools: ToolDef[] = [
       const id = args.id as number;
       const { dryRun } = policy.guard({ tool: "delete_annotation", capability: "admin", destructive: true });
       if (dryRun) return textResult(`[dry-run] Would delete annotation ${id}.`);
-      const ok = await confirm.confirm({ action: "delete annotation", target: String(id) });
+      const ok = await confirm.confirm({
+        action: "delete annotation",
+        target: String(id),
+        probe: () => client.annotationVersion(id),
+      });
       if (!ok.approved) return textResult(`Deletion cancelled — ${ok.reason}.`);
       return jsonResult(await client.deleteAnnotation(id));
     },

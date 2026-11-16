@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { redactDatasource } from "../grafana/client.js";
+import { redactContactPoint, redactDatasource } from "../grafana/client.js";
 import type { ToolDef } from "./types.js";
 import { jsonResult } from "./types.js";
 
@@ -171,6 +171,47 @@ export const readTools: ToolDef[] = [
     handler: async (_args, { client, policy }) => {
       policy.guard({ tool: "list_alert_rules", capability: "read" });
       return jsonResult(await client.listAlertRules());
+    },
+  },
+  {
+    name: "get_alert_rule",
+    capability: "read",
+    config: {
+      title: "Get alert rule",
+      description: "Full detail (query, condition, evaluation interval, labels, annotations) for a single Grafana-managed alert rule by UID.",
+      inputSchema: { uid: z.string().describe("Alert rule UID") },
+    },
+    handler: async (args, { client, policy }) => {
+      policy.guard({ tool: "get_alert_rule", capability: "read" });
+      return jsonResult(await client.getAlertRule(args.uid as string));
+    },
+  },
+  {
+    name: "list_contact_points",
+    capability: "read",
+    config: {
+      title: "List contact points",
+      description:
+        "List alerting contact points (email, Slack, webhook, …) that notification policies route to. Secure settings " +
+        "(tokens, URLs, passwords, …) are never returned — see `settings` for which fields were redacted.",
+      inputSchema: {},
+    },
+    handler: async (_args, { client, policy }) => {
+      policy.guard({ tool: "list_contact_points", capability: "read" });
+      return jsonResult((await client.listContactPoints()).map(redactContactPoint));
+    },
+  },
+  {
+    name: "list_notification_policies",
+    capability: "read",
+    config: {
+      title: "List notification policies",
+      description: "The notification policy tree: how firing alerts are routed to contact points, by label matchers.",
+      inputSchema: {},
+    },
+    handler: async (_args, { client, policy }) => {
+      policy.guard({ tool: "list_notification_policies", capability: "read" });
+      return jsonResult(await client.listNotificationPolicies());
     },
   },
   {

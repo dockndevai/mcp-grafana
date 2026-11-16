@@ -62,6 +62,46 @@ export function redactDatasource(ds: Record<string, unknown>): Datasource {
   };
 }
 
+/** Settings keys a contact point can carry that are secure in Grafana (tokens, passwords, webhook secrets, …). */
+const SECRET_SETTINGS_KEYS =
+  /(^|[^a-z])(pass(code|word|wd|phrase)?|secret|tokens?|credentials?|authorization|bearer|api[-_]?key|private[-_]?key|access[-_]?key|url|webhook|integration[-_]?key|service[-_]?key|app[-_]?token|signing[-_]?key)([^a-z]|$)/i;
+
+/** Treat a camelCase transition ("webhookURL") as a word boundary, so the whole-word check in SECRET_SETTINGS_KEYS still catches compound keys. */
+function isSecretSettingsKey(key: string): boolean {
+  return SECRET_SETTINGS_KEYS.test(key.replace(/([a-z])([A-Z])/g, "$1_$2"));
+}
+
+export interface ContactPoint {
+  uid?: string;
+  name: string;
+  type: string;
+  disableResolveMessage?: boolean;
+  provenance?: string;
+  settings: Record<string, unknown>;
+}
+
+/**
+ * Grafana's provisioning API already withholds secure contact-point settings (it returns them via a
+ * separate `secureFields` map, never the decrypted value), but we redact defensively here too: any
+ * settings key that *looks* secret (url, token, password, webhook, …) is replaced with "[redacted]"
+ * rather than trusted to be safe just because the upstream API said so.
+ */
+export function redactContactPoint(cp: Record<string, unknown>): ContactPoint {
+  const rawSettings = (cp.settings as Record<string, unknown>) ?? {};
+  const settings: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(rawSettings)) {
+    settings[k] = isSecretSettingsKey(k) ? "[redacted]" : v;
+  }
+  return {
+    uid: cp.uid as string | undefined,
+    name: cp.name as string,
+    type: cp.type as string,
+    disableResolveMessage: cp.disableResolveMessage as boolean | undefined,
+    provenance: cp.provenance as string | undefined,
+    settings,
+  };
+}
+
 export interface DsQuery {
   refId?: string;
   datasourceUid: string;
@@ -259,6 +299,15 @@ export class GrafanaClient {
   // --- Alerting (Grafana-managed, read via provisioning API) ---
   listAlertRules() {
     return this.request<Array<Record<string, unknown>>>("/api/v1/provisioning/alert-rules");
+  }
+  getAlertRule(uid: string) {
+    return this.request<Record<string, unknown>>(`/api/v1/provisioning/alert-rules/${encodeURIComponent(uid)}`);
+  }
+  listContactPoints() {
+    return this.request<Array<Record<string, unknown>>>("/api/v1/provisioning/contact-points");
+  }
+  listNotificationPolicies() {
+    return this.request<Record<string, unknown>>("/api/v1/provisioning/policies");
   }
 
   // --- Annotations ---

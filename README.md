@@ -4,11 +4,11 @@
 [![CI](https://github.com/dockndevai/mcp-grafana/actions/workflows/ci.yml/badge.svg)](https://github.com/dockndevai/mcp-grafana/actions/workflows/ci.yml)
 [![licence](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
 
-A **safe-by-default** [Model Context Protocol](https://modelcontextprotocol.io) server for **Grafana**. It lets an agent explore and operate Grafana — search dashboards, read the dashboard JSON model, list and **query datasources** (Prometheus / Loki / SQL), inspect alert rules and annotations, and (in higher modes) create/update dashboards and folders, write annotations, and delete.
+A **safe-by-default** [Model Context Protocol](https://modelcontextprotocol.io) server for **Grafana**. It lets an agent explore and operate Grafana — search dashboards, read the dashboard JSON model, list and **query datasources** (Prometheus / Loki / SQL), inspect alert rules, contact points, notification policies, and annotations, and (in higher modes) create/update dashboards and folders, write annotations, and delete.
 
 Part of the [dockndevai MCP server suite](https://dockndevai.github.io/) — one governance model across all of them.
 
-![mcp-grafana — safe by default: read-only exposes 11 tools; raising the access mode unlocks writes and (gated) deletes](docs/demo.gif)
+![mcp-grafana — safe by default: read-only exposes 14 tools; raising the access mode unlocks writes and (gated) deletes](docs/demo.gif)
 
 ## What it gives an agent
 
@@ -22,7 +22,9 @@ The server starts **read-only** (see [Safe by default](#safe-by-default)); highe
 | `get_dashboard` | the full dashboard JSON model + meta | read-only |
 | `list_datasources` / `get_datasource` | datasources (secrets redacted) | read-only |
 | `query_datasource` | run PromQL / LogQL / SQL via the unified query API | read-only |
-| `list_alert_rules` | Grafana-managed alert rules | read-only |
+| `list_alert_rules` / `get_alert_rule` | Grafana-managed alert rules (list, or full detail by uid) | read-only |
+| `list_contact_points` | alerting contact points (secrets redacted) | read-only |
+| `list_notification_policies` | routing tree from firing alerts to contact points | read-only |
 | `list_annotations` | events overlaid on graphs | read-only |
 | `create_or_update_dashboard` | upsert a dashboard (versioned, reversible) | read-write |
 | `create_folder` | create a folder | read-write |
